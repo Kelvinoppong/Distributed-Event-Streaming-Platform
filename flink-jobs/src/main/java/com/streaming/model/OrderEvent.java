@@ -1,12 +1,16 @@
 package com.streaming.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 
 public class OrderEvent implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @JsonProperty("order_id")
     private String orderId;
+
+    @JsonProperty("user_id")
     private String userId;
     private double amount;
     private String status;

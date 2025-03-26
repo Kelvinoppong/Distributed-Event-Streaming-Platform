@@ -7,6 +7,7 @@ services:
     container_name: kafka-1
     ports:
       - "29092:29092"
+      - "19404:9404"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -25,8 +26,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_LOG_RETENTION_MS: 604800000
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OPTS: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml"
     volumes:
       - kafka-1-data:/var/lib/kafka/data
+      - ./monitoring/kafka-jmx/jmx_prometheus_javaagent.jar:/opt/jmx-exporter/jmx_prometheus_javaagent.jar:ro
+      - ./monitoring/kafka-jmx/jmx-exporter.yml:/opt/jmx-exporter/config.yml:ro
     networks:
       - streaming
     healthcheck:
@@ -42,6 +46,7 @@ services:
     container_name: kafka-2
     ports:
       - "29093:29093"
+      - "29404:9404"
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: broker,controller
@@ -60,8 +65,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_LOG_RETENTION_MS: 604800000
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OPTS: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml"
     volumes:
       - kafka-2-data:/var/lib/kafka/data
+      - ./monitoring/kafka-jmx/jmx_prometheus_javaagent.jar:/opt/jmx-exporter/jmx_prometheus_javaagent.jar:ro
+      - ./monitoring/kafka-jmx/jmx-exporter.yml:/opt/jmx-exporter/config.yml:ro
     networks:
       - streaming
     healthcheck:
@@ -77,6 +85,7 @@ services:
     container_name: kafka-3
     ports:
       - "29094:29094"
+      - "39404:9404"
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: broker,controller
@@ -95,8 +104,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_LOG_RETENTION_MS: 604800000
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OPTS: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml"
     volumes:
       - kafka-3-data:/var/lib/kafka/data
+      - ./monitoring/kafka-jmx/jmx_prometheus_javaagent.jar:/opt/jmx-exporter/jmx_prometheus_javaagent.jar:ro
+      - ./monitoring/kafka-jmx/jmx-exporter.yml:/opt/jmx-exporter/config.yml:ro
     networks:
       - streaming
     healthcheck:
@@ -271,7 +283,7 @@ services:
     image: grafana/grafana:10.2.3
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: streaming

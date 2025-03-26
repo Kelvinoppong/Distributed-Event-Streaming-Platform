@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/postgres";
+import { getDemoAnalytics } from "@/lib/demo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,10 @@ export async function GET() {
       ),
     ]);
 
+    if (topUsers.length === 0) {
+      return NextResponse.json(getDemoAnalytics());
+    }
+
     return NextResponse.json({
       topUsers: topUsers.map((u) => ({
         userId: u.user_id,
@@ -53,8 +58,6 @@ export async function GET() {
       })),
     });
   } catch {
-    return NextResponse.json(
-      { topUsers: [], revenueOverTime: [], volumeOverTime: [] }
-    );
+    return NextResponse.json(getDemoAnalytics());
   }
 }

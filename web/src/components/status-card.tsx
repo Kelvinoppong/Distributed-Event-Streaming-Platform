@@ -6,6 +6,7 @@ interface StatusCardProps {
   status: "healthy" | "degraded" | "down" | "loading";
   icon: LucideIcon;
   detail?: string;
+  stats?: string[];
 }
 
 const statusConfig = {
@@ -15,7 +16,7 @@ const statusConfig = {
   loading: { label: "Loading", color: "bg-muted-foreground", textColor: "text-muted-foreground" },
 };
 
-export function StatusCard({ title, status, icon: Icon, detail }: StatusCardProps) {
+export function StatusCard({ title, status, icon: Icon, detail, stats }: StatusCardProps) {
   const cfg = statusConfig[status];
 
   return (
@@ -32,8 +33,10 @@ export function StatusCard({ title, status, icon: Icon, detail }: StatusCardProp
           </span>
         </div>
       </div>
-      {detail && (
-        <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
+      {(detail || (stats && stats.length > 0)) && (
+        <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">
+          {stats ? stats.join(" · ") : detail}
+        </p>
       )}
     </div>
   );
