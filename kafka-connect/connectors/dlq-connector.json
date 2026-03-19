@@ -1,0 +1,15 @@
+{
+  "name": "dlq-slack-connector",
+  "config": {
+    "connector.class": "org.apache.kafka.connect.file.FileStreamSinkConnector",
+    "topics": "order-events-dlq",
+    "file": "/tmp/dlq-events.log",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "transforms": "slackAlert",
+    "transforms.slackAlert.type": "com.streaming.smt.SlackAlertTransform",
+    "transforms.slackAlert.slack.webhook.url": "${env:SLACK_WEBHOOK_URL}"
+  }
+}
