@@ -1,0 +1,32 @@
+# Go
+producer/event-producer
+*.exe
+
+# Java / Maven
+flink-jobs/target/
+*.class
+*.jar
+!flink-jobs/pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Checkpoints
+checkpoints/
+
+# Nested repo artifact
+Distributed-Event-Streaming-Platform/
