@@ -1,0 +1,96 @@
+kafka:
+  replicas: 3
+  version: "3.6.0"
+  storageSize: 50Gi
+  storageClass: standard
+  config:
+    minInsyncReplicas: 2
+    defaultReplicationFactor: 3
+    numPartitions: 12
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 500m
+    limits:
+      memory: 4Gi
+      cpu: "2"
+
+zookeeper:
+  replicas: 3
+  storageSize: 10Gi
+
+producer:
+  replicas: 2
+  image:
+    repository: ghcr.io/kelvinoppong/event-producer
+    tag: latest
+  config:
+    numWorkers: 4
+    eventsPerSecond: 100
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPU: 70
+    targetMemory: 80
+  pdb:
+    enabled: true
+    minAvailable: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+flink:
+  jobManager:
+    replicas: 1
+    memory: 1600m
+    cpu: "0.5"
+  taskManager:
+    replicas: 2
+    memory: 2048m
+    cpu: "1"
+    taskSlots: 4
+  job:
+    parallelism: 4
+    checkpointInterval: 30000
+    upgradeMode: savepoint
+
+dlqRetryConsumer:
+  enabled: true
+  replicas: 1
+  image:
+    repository: ghcr.io/kelvinoppong/dlq-retry-consumer
+    tag: latest
+  config:
+    maxRetries: 5
+    baseBackoffSeconds: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+postgres:
+  enabled: true
+  storageSize: 10Gi
+  storageClass: standard
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+slack:
+  webhookUrl: ""
+
+monitoring:
+  enabled: true
+  grafanaDashboards: true

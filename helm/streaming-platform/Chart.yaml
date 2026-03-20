@@ -1,0 +1,13 @@
+apiVersion: v2
+name: streaming-platform
+description: Distributed event streaming platform with Kafka, Flink, and DLQ pipeline
+version: 0.1.0
+appVersion: "1.0.0"
+type: application
+keywords:
+  - kafka
+  - flink
+  - streaming
+  - event-driven
+maintainers:
+  - name: Kelvin Oppong

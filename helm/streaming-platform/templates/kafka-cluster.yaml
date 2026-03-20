@@ -1,0 +1,62 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: order-streaming-cluster
+  namespace: kafka
+  labels:
+    {{- include "streaming-platform.labels" . | nindent 4 }}
+spec:
+  kafka:
+    replicas: {{ .Values.kafka.replicas }}
+    version: {{ .Values.kafka.version | quote }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    storage:
+      type: persistent-claim
+      size: {{ .Values.kafka.storageSize }}
+      class: {{ .Values.kafka.storageClass }}
+      deleteClaim: false
+    config:
+      min.insync.replicas: {{ .Values.kafka.config.minInsyncReplicas }}
+      default.replication.factor: {{ .Values.kafka.config.defaultReplicationFactor }}
+      num.partitions: {{ .Values.kafka.config.numPartitions }}
+      transaction.state.log.replication.factor: {{ .Values.kafka.config.defaultReplicationFactor }}
+      transaction.state.log.min.isr: {{ .Values.kafka.config.minInsyncReplicas }}
+      auto.create.topics.enable: false
+      log.retention.ms: 604800000
+      offsets.topic.replication.factor: {{ .Values.kafka.config.defaultReplicationFactor }}
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    strimzi.io/name: order-streaming-cluster-kafka
+                topologyKey: kubernetes.io/hostname
+    {{- if .Values.monitoring.enabled }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+    {{- end }}
+    resources:
+      {{- toYaml .Values.kafka.resources | nindent 6 }}
+  zookeeper:
+    replicas: {{ .Values.zookeeper.replicas }}
+    storage:
+      type: persistent-claim
+      size: {{ .Values.zookeeper.storageSize }}
+      class: {{ .Values.kafka.storageClass }}
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

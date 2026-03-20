@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-producer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: event-producer
+    {{- include "streaming-platform.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.producer.replicas }}
+  selector:
+    matchLabels:
+      app: event-producer
+  template:
+    metadata:
+      labels:
+        app: event-producer
+    spec:
+      containers:
+        - name: producer
+          image: "{{ .Values.producer.image.repository }}:{{ .Values.producer.image.tag }}"
+          env:
+            - name: KAFKA_BROKERS
+              value: order-streaming-cluster-kafka-bootstrap.kafka.svc:9092
+            - name: KAFKA_TOPIC
+              value: order-events
+            - name: NUM_WORKERS
+              value: {{ .Values.producer.config.numWorkers | quote }}
+            - name: EVENTS_PER_SECOND
+              value: {{ .Values.producer.config.eventsPerSecond | quote }}
+          resources:
+            {{- toYaml .Values.producer.resources | nindent 12 }}
+---
+{{- if .Values.producer.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: producer-hpa
+  namespace: {{ .Release.Namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: event-producer
+  minReplicas: {{ .Values.producer.hpa.minReplicas }}
+  maxReplicas: {{ .Values.producer.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.producer.hpa.targetCPU }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.producer.hpa.targetMemory }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+{{- end }}
+---
+{{- if .Values.producer.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: producer-pdb
+  namespace: {{ .Release.Namespace }}
+spec:
+  minAvailable: {{ .Values.producer.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app: event-producer
+{{- end }}

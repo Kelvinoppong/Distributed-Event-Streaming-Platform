@@ -1,0 +1,78 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: flink-processor
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: order-streaming-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: order-events
+        operations: [Read, Describe]
+      - resource:
+          type: topic
+          name: order-events-dlq
+        operations: [Write, Describe]
+      - resource:
+          type: topic
+          name: order-stats
+        operations: [Write, Describe]
+      - resource:
+          type: group
+          name: flink-order-processor
+        operations: [Read]
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: event-producer
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: order-streaming-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: order-events
+        operations: [Write, Describe]
+      - resource:
+          type: topic
+          name: "*"
+          patternType: literal
+        operations: [IdempotentWrite]
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: dlq-retry-consumer
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: order-streaming-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: order-events-dlq
+        operations: [Read, Describe]
+      - resource:
+          type: topic
+          name: order-events
+        operations: [Write, Describe]
+      - resource:
+          type: group
+          name: dlq-retry-consumer
+        operations: [Read]

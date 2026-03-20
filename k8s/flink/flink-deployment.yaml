@@ -1,0 +1,37 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: order-event-processor
+  namespace: streaming
+spec:
+  image: flink:1.18-java17
+  flinkVersion: v1_18
+  flinkConfiguration:
+    state.backend.type: rocksdb
+    state.checkpoints.dir: file:///opt/flink/checkpoints
+    execution.checkpointing.interval: "30000"
+    execution.checkpointing.mode: EXACTLY_ONCE
+    execution.checkpointing.min-pause: "5000"
+    execution.checkpointing.tolerable-failed-checkpoints: "3"
+    taskmanager.numberOfTaskSlots: "4"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: 1600m
+      cpu: 0.5
+    replicas: 1
+  taskManager:
+    resource:
+      memory: 2048m
+      cpu: 1
+    replicas: 2
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          volumeMounts:
+            - name: checkpoints
+              mountPath: /opt/flink/checkpoints
+      volumes:
+        - name: checkpoints
+          emptyDir: {}

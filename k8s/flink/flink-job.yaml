@@ -1,0 +1,17 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  name: order-event-job
+  namespace: streaming
+spec:
+  deploymentName: order-event-processor
+  job:
+    jarURI: local:///opt/flink/usrlib/order-event-processor-1.0.0.jar
+    entryClass: com.streaming.OrderEventJob
+    parallelism: 4
+    upgradeMode: savepoint
+    args:
+      - "--kafka.brokers"
+      - "order-streaming-cluster-kafka-bootstrap.kafka.svc:9092"
+      - "--jdbc.url"
+      - "jdbc:postgresql://postgres.streaming.svc:5432/streaming"

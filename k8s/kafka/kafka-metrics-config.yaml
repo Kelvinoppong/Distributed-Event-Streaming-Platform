@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-metrics
+  namespace: kafka
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    lowercaseOutputLabelNames: true
+    rules:
+      - pattern: kafka.server<type=BrokerTopicMetrics, name=MessagesInPerSec><>OneMinuteRate
+        name: kafka_server_broker_topic_metrics_messages_in_per_sec
+        type: GAUGE
+
+      - pattern: kafka.server<type=BrokerTopicMetrics, name=BytesInPerSec><>OneMinuteRate
+        name: kafka_server_broker_topic_metrics_bytes_in_per_sec
+        type: GAUGE
+
+      - pattern: kafka.server<type=BrokerTopicMetrics, name=BytesOutPerSec><>OneMinuteRate
+        name: kafka_server_broker_topic_metrics_bytes_out_per_sec
+        type: GAUGE
+
+      - pattern: kafka.network<type=RequestMetrics, name=TotalTimeMs, request=Produce><>99thPercentile
+        name: kafka_network_request_metrics_produce_total_time_ms_p99
+        type: GAUGE
+
+      - pattern: kafka.network<type=RequestMetrics, name=TotalTimeMs, request=FetchConsumer><>99thPercentile
+        name: kafka_network_request_metrics_fetch_total_time_ms_p99
+        type: GAUGE
+
+      - pattern: kafka.server<type=ReplicaManager, name=UnderReplicatedPartitions><>Value
+        name: kafka_server_replica_manager_under_replicated_partitions
+        type: GAUGE
+
+      - pattern: kafka.server<type=ReplicaManager, name=PartitionCount><>Value
+        name: kafka_server_replica_manager_partition_count
+        type: GAUGE
+
+      - pattern: kafka.controller<type=KafkaController, name=ActiveControllerCount><>Value
+        name: kafka_controller_active_controller_count
+        type: GAUGE
+
+      - pattern: kafka.controller<type=KafkaController, name=OfflinePartitionsCount><>Value
+        name: kafka_controller_offline_partitions_count
+        type: GAUGE

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dlq-retry-consumer
+  namespace: streaming
+  labels:
+    app: dlq-retry-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dlq-retry-consumer
+  template:
+    metadata:
+      labels:
+        app: dlq-retry-consumer
+    spec:
+      containers:
+        - name: dlq-retry
+          image: ghcr.io/kelvinoppong/dlq-retry-consumer:latest
+          env:
+            - name: KAFKA_BROKERS
+              value: order-streaming-cluster-kafka-bootstrap.kafka.svc:9092
+            - name: DLQ_TOPIC
+              value: order-events-dlq
+            - name: RETRY_TOPIC
+              value: order-events
+            - name: GROUP_ID
+              value: dlq-retry-consumer
+            - name: MAX_RETRIES
+              value: "5"
+            - name: BASE_BACKOFF_SECONDS
+              value: "1"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: slack-credentials
+                  key: webhook-url
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      restartPolicy: Always

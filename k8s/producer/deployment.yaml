@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-producer
+  namespace: streaming
+  labels:
+    app: event-producer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: event-producer
+  template:
+    metadata:
+      labels:
+        app: event-producer
+    spec:
+      containers:
+        - name: producer
+          image: ghcr.io/kelvinoppong/event-producer:latest
+          env:
+            - name: KAFKA_BROKERS
+              value: order-streaming-cluster-kafka-bootstrap.kafka.svc:9092
+            - name: KAFKA_TOPIC
+              value: order-events
+            - name: NUM_WORKERS
+              value: "4"
+            - name: EVENTS_PER_SECOND
+              value: "100"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command: ["pgrep", "-f", "event-producer"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      restartPolicy: Always

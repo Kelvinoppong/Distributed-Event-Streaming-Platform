@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: producer-pdb
+  namespace: streaming
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: event-producer
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-pdb
+  namespace: kafka
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      strimzi.io/name: order-streaming-cluster-kafka
