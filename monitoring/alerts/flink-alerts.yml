@@ -1,0 +1,18 @@
+groups:
+  - name: flink-alerts
+    rules:
+      - alert: FlinkCheckpointFailed
+        expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flink checkpoint failures detected"
+
+      - alert: FlinkCheckpointDurationHigh
+        expr: flink_jobmanager_job_lastCheckpointDuration > 60000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Flink checkpoint duration exceeded 60s"

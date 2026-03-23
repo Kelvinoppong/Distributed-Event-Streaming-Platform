@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: streaming
+data:
+  kafka-alerts.yml: |
+    groups:
+      - name: kafka-alerts
+        rules:
+          - alert: KafkaHighProducerLatency
+            expr: kafka_network_request_metrics_produce_total_time_ms_p99 > 10
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "P99 produce latency exceeded 10ms"
+              description: "Kafka broker {{ $labels.pod }} P99 produce latency is {{ $value }}ms"
+
+          - alert: KafkaUnderReplicatedPartitions
+            expr: kafka_server_replica_manager_under_replicated_partitions > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Under-replicated partitions detected"
+              description: "Broker {{ $labels.pod }} has {{ $value }} under-replicated partitions"
+
+          - alert: KafkaOfflinePartitions
+            expr: kafka_controller_offline_partitions_count > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Offline partitions detected"
+              description: "{{ $value }} partitions are offline"
+
+          - alert: KafkaNoActiveController
+            expr: kafka_controller_active_controller_count == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "No active Kafka controller"
+              description: "Kafka cluster has no active controller"
+
+  flink-alerts.yml: |
+    groups:
+      - name: flink-alerts
+        rules:
+          - alert: FlinkCheckpointFailed
+            expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Flink checkpoint failures detected"
+              description: "Job {{ $labels.job_name }} had checkpoint failures in the last 5 minutes"
+
+          - alert: FlinkCheckpointDurationHigh
+            expr: flink_jobmanager_job_lastCheckpointDuration > 60000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Flink checkpoint duration exceeded 60s"
+              description: "Job {{ $labels.job_name }} last checkpoint took {{ $value }}ms"
+
+          - alert: FlinkJobNotRunning
+            expr: flink_jobmanager_job_uptime == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Flink job is not running"
+
+  dlq-alerts.yml: |
+    groups:
+      - name: dlq-alerts
+        rules:
+          - alert: DLQEventsDetected
+            expr: increase(kafka_server_broker_topic_metrics_messages_in_per_sec{topic="order-events-dlq"}[5m]) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Events detected in DLQ topic"
+              description: "Dead letter queue has received events in the last 5 minutes"
+
+          - alert: DLQHighRate
+            expr: rate(kafka_server_broker_topic_metrics_messages_in_per_sec{topic="order-events-dlq"}[5m]) > 10
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High DLQ event rate"
+              description: "DLQ is receiving more than 10 events/sec"

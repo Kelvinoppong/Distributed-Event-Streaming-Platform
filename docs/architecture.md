@@ -100,6 +100,39 @@ All manifests are wrapped in a Helm chart (`helm/streaming-platform/`) with conf
 2. **Flink checkpointing**: `EXACTLY_ONCE` mode with RocksDB state backend.
 3. **Sink idempotency**: PostgreSQL `ON CONFLICT ... DO UPDATE` upsert.
 
+## Observability
+
+### Metrics Collection
+
+- **Kafka**: JMX metrics exported via Strimzi's built-in Prometheus JMX Exporter (port 9404). Key metrics: messages/sec, bytes in/out, P99 produce latency, under-replicated partitions, consumer lag.
+- **Flink**: Built-in metrics reporter exposes checkpoint duration, failure counts, job uptime, and backpressure metrics.
+- **Prometheus**: Scrapes all metric endpoints at 15-second intervals with 7-day retention.
+
+### Dashboards
+
+Custom Grafana dashboard (`kafka-overview.json`) provides:
+- Messages in per second (aggregate throughput)
+- Bytes in/out per second
+- P99 produce latency with threshold markers (warning at 5ms, critical at 10ms)
+- Under-replicated partition count
+- DLQ event rate with anomaly thresholds
+- Flink checkpoint duration
+
+### Alerting Rules
+
+Three alert groups covering the critical failure modes:
+
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| KafkaHighProducerLatency | P99 > 10ms for 2m | Warning |
+| KafkaUnderReplicatedPartitions | > 0 for 1m | Critical |
+| KafkaOfflinePartitions | > 0 for 1m | Critical |
+| KafkaNoActiveController | 0 controllers for 1m | Critical |
+| FlinkCheckpointFailed | Failures in 5m window | Critical |
+| FlinkCheckpointDurationHigh | > 60s for 5m | Warning |
+| DLQEventsDetected | DLQ receiving events for 5m | Warning |
+| DLQHighRate | > 10 events/sec for 2m | Critical |
+
 ## Local Development
 
-All components run via `docker-compose.yml`. The Flink job JAR is mounted from local Maven output. DLQ services run under Docker Compose profiles (`dlq`, `connect`).
+All components run via `docker-compose.yml`. The Flink job JAR is mounted from local Maven output. Prometheus and Grafana start automatically. DLQ services run under Docker Compose profiles (`dlq`, `connect`).

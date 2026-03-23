@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: streaming
+  labels:
+    app: grafana
+data:
+  kafka-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "panels": [
+        {
+          "title": "Messages In Per Second",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum(kafka_server_broker_topic_metrics_messages_in_per_sec)", "legendFormat": "Total Messages/sec" }],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "title": "Bytes In/Out Per Second",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            { "expr": "sum(kafka_server_broker_topic_metrics_bytes_in_per_sec)", "legendFormat": "Bytes In" },
+            { "expr": "sum(kafka_server_broker_topic_metrics_bytes_out_per_sec)", "legendFormat": "Bytes Out" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } }
+        },
+        {
+          "title": "P99 Produce Latency",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [{ "expr": "kafka_network_request_metrics_produce_total_time_ms_p99", "legendFormat": "{{ pod }}" }],
+          "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "steps": [{"color":"green","value":null},{"color":"red","value":10}] } } }
+        },
+        {
+          "title": "Under-Replicated Partitions",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+          "targets": [{ "expr": "sum(kafka_server_replica_manager_under_replicated_partitions)" }],
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [{"color":"green","value":null},{"color":"red","value":1}] } } }
+        },
+        {
+          "title": "DLQ Event Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [{ "expr": "sum(rate(kafka_server_broker_topic_metrics_messages_in_per_sec{topic=\"order-events-dlq\"}[5m]))", "legendFormat": "DLQ events/sec" }],
+          "fieldConfig": { "defaults": { "unit": "ops", "thresholds": { "steps": [{"color":"green","value":null},{"color":"red","value":10}] } } }
+        },
+        {
+          "title": "Flink Checkpoint Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [{ "expr": "flink_jobmanager_job_lastCheckpointDuration", "legendFormat": "{{ job_name }}" }],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        }
+      ],
+      "schemaVersion": 38,
+      "tags": ["kafka", "streaming"],
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Streaming Platform Overview",
+      "uid": "streaming-overview"
+    }

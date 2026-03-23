@@ -1,0 +1,18 @@
+groups:
+  - name: dlq-alerts
+    rules:
+      - alert: DLQEventsDetected
+        expr: increase(kafka_server_broker_topic_metrics_messages_in_per_sec{topic="order-events-dlq"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Events detected in DLQ topic"
+
+      - alert: DLQHighRate
+        expr: rate(kafka_server_broker_topic_metrics_messages_in_per_sec{topic="order-events-dlq"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High DLQ event rate (>10/sec)"

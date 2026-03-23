@@ -34,6 +34,7 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 - **Flink stateful processing** with custom watermarks, 1-minute tumbling windows, and RocksDB state backend.
 - **Dead letter queue pipeline** with Flink side outputs, exponential retry backoff, poison pill detection, and Slack alerts via custom Kafka Connect SMT.
 - **Kubernetes-native** with HPA autoscaling (2–20 pods), PodDisruptionBudgets for zero-downtime upgrades, and Helm chart for parameterized deployment.
+- **Full observability**: Prometheus metrics collection, Grafana dashboards (throughput, P99 latency, DLQ rate, checkpoint duration), and alerting rules for Kafka, Flink, and DLQ anomalies.
 - **CooperativeStickyAssignor** for minimal consumer group rebalance disruption.
 
 ## Tech Stack
@@ -50,7 +51,9 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 | Orchestration | Kubernetes + Helm |
 | Autoscaling | HPA (CPU/memory) + PDB |
 | Containerization | Docker Compose (local) |
-| Monitoring | Kafka UI / JMX Prometheus Exporter |
+| Metrics | Prometheus + JMX Exporter |
+| Dashboards | Grafana (custom streaming dashboard) |
+| Alerting | Prometheus alerting rules |
 
 ## Quick Start (Local Docker)
 
@@ -76,6 +79,8 @@ cd ../producer && go mod tidy && go run .
 |---------|-----|
 | Kafka UI | http://localhost:8080 |
 | Flink Dashboard | http://localhost:8081 |
+| Grafana | http://localhost:3000 (admin / streaming) |
+| Prometheus | http://localhost:9090 |
 | PostgreSQL | `localhost:5432` (streaming / streaming) |
 
 ## Kubernetes Deployment
@@ -135,12 +140,23 @@ helm install streaming-platform ./helm/streaming-platform \
 │   │   └── pdb.yaml                # PDB: min 2 available
 │   ├── dlq/
 │   │   └── dlq-retry-deployment.yaml
-│   └── postgres/
-│       └── postgres-deployment.yaml
+│   ├── postgres/
+│   │   └── postgres-deployment.yaml
+│   └── monitoring/
+│       ├── prometheus.yaml
+│       ├── prometheus-alerts.yaml
+│       ├── prometheus-rbac.yaml
+│       ├── grafana.yaml
+│       ├── grafana-dashboards-configmap.yaml
+│       └── dashboards/kafka-overview.json
 ├── helm/streaming-platform/        # Helm chart
 │   ├── Chart.yaml
 │   ├── values.yaml
 │   └── templates/
+├── monitoring/                      # Local Prometheus + Grafana config
+│   ├── prometheus.yml
+│   ├── alerts/                      # Alert rules (Kafka, Flink, DLQ)
+│   └── grafana/provisioning/        # Datasource + dashboard providers
 ├── scripts/
 │   ├── setup-local.sh
 │   ├── deploy-k8s.sh
