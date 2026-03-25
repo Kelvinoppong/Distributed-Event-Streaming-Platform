@@ -157,9 +157,13 @@ helm install streaming-platform ./helm/streaming-platform \
 │   ├── prometheus.yml
 │   ├── alerts/                      # Alert rules (Kafka, Flink, DLQ)
 │   └── grafana/provisioning/        # Datasource + dashboard providers
+├── load-test/                       # k6 load test scripts
+│   ├── load_test.js                 # Main test with custom metrics + summary
+│   └── config/                      # low, high, stress profiles
 ├── scripts/
 │   ├── setup-local.sh
 │   ├── deploy-k8s.sh
+│   ├── run-load-test.sh
 │   └── init-postgres.sql
 └── docs/
     └── architecture.md
@@ -176,6 +180,27 @@ helm install streaming-platform ./helm/streaming-platform \
 | `MAX_RETRIES` | `5` | DLQ retry attempts |
 | `BASE_BACKOFF_SECONDS` | `1` | Initial retry backoff |
 | `SLACK_WEBHOOK_URL` | _(empty)_ | Slack webhook for DLQ alerts |
+
+## Load Testing
+
+Load tests use [k6](https://k6.io/) with the [xk6-kafka](https://github.com/mostafa/xk6-kafka) extension.
+
+```bash
+# Default profile (ramp to 1,000 VUs over 10 min)
+./scripts/run-load-test.sh
+
+# Available profiles: low, default, high, stress
+./scripts/run-load-test.sh high
+```
+
+| Profile | Peak VUs | Duration | Purpose |
+|---------|----------|----------|---------|
+| `low` | 10 | 1 min | Smoke test |
+| `default` | 1,000 | 10 min | Standard benchmark |
+| `high` | 2,000 | 9 min | Sustained high throughput |
+| `stress` | 5,000 | 12 min | Break point analysis |
+
+Results and methodology: [docs/benchmarks.md](docs/benchmarks.md)
 
 ## Design Decisions
 

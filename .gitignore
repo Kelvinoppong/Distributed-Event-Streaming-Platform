@@ -28,5 +28,8 @@ Thumbs.db
 # Checkpoints
 checkpoints/
 
+# Load test results
+load-test/results.json
+
 # Nested repo artifact
 Distributed-Event-Streaming-Platform/

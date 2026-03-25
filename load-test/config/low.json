@@ -1,0 +1,13 @@
+{
+  "scenarios": {
+    "low_load": {
+      "executor": "constant-vus",
+      "vus": 10,
+      "duration": "1m"
+    }
+  },
+  "thresholds": {
+    "kafka_send_errors": ["rate<0.01"],
+    "kafka_send_duration_ms": ["p(99)<50"]
+  }
+}
