@@ -1,5 +1,8 @@
 # Distributed Event Streaming Platform
 
+[![CI](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/ci.yml)
+[![Docker](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/docker.yml/badge.svg)](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/docker.yml)
+
 Real-time event streaming pipeline with exactly-once delivery guarantees, stateful stream processing, dead letter queue handling, and Kubernetes-native deployment.
 
 ## Architecture
@@ -164,9 +167,14 @@ helm install streaming-platform ./helm/streaming-platform \
 │   ├── setup-local.sh
 │   ├── deploy-k8s.sh
 │   ├── run-load-test.sh
+│   ├── run-integration-tests.sh
 │   └── init-postgres.sql
+├── .github/workflows/
+│   ├── ci.yml                       # Build + test + lint + integration
+│   └── docker.yml                   # Container image builds (GHCR)
 └── docs/
-    └── architecture.md
+    ├── architecture.md
+    └── benchmarks.md
 ```
 
 ## Configuration
