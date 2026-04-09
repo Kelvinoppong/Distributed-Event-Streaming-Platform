@@ -38,6 +38,7 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 - **Dead letter queue pipeline** with Flink side outputs, exponential retry backoff, poison pill detection, and Slack alerts via custom Kafka Connect SMT.
 - **Kubernetes-native** with HPA autoscaling (2–20 pods), PodDisruptionBudgets for zero-downtime upgrades, and Helm chart for parameterized deployment.
 - **Full observability**: Prometheus metrics collection, Grafana dashboards (throughput, P99 latency, DLQ rate, checkpoint duration), and alerting rules for Kafka, Flink, and DLQ anomalies.
+- **Real-time monitoring dashboard**: Next.js web UI with live metrics, alerts panel, Kafka/Flink/DLQ views, and order analytics from PostgreSQL.
 - **CooperativeStickyAssignor** for minimal consumer group rebalance disruption.
 
 ## Tech Stack
@@ -56,6 +57,7 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 | Containerization | Docker Compose (local) |
 | Metrics | Prometheus + JMX Exporter |
 | Dashboards | Grafana (custom streaming dashboard) |
+| Monitoring UI | Next.js 14 + Recharts + Tailwind CSS |
 | Alerting | Prometheus alerting rules |
 
 ## Quick Start (Local Docker)
@@ -83,8 +85,28 @@ cd ../producer && go mod tidy && go run .
 | Kafka UI | http://localhost:8080 |
 | Flink Dashboard | http://localhost:8081 |
 | Grafana | http://localhost:3000 (admin / streaming) |
+| Stream Monitor | http://localhost:3001 |
 | Prometheus | http://localhost:9090 |
 | PostgreSQL | `localhost:5432` (streaming / streaming) |
+
+## Monitoring Dashboard
+
+The project includes a real-time Next.js dashboard that visualizes pipeline health, Kafka throughput, Flink job status, DLQ metrics, and order analytics.
+
+```bash
+# Start with Docker Compose (alongside existing services)
+docker compose --profile web up -d
+
+# Or run in development mode
+cd web && cp .env.local.example .env.local && npm run dev
+```
+
+**Pages:**
+- **Overview** — System health cards, key metrics, active alerts
+- **Kafka** — Throughput charts, per-broker table, partition health
+- **Flink** — Job status, checkpoint duration, cluster info
+- **DLQ** — Event rate, cumulative counts, DLQ-specific alerts
+- **Analytics** — Top users, revenue/volume time series from PostgreSQL
 
 ## Kubernetes Deployment
 
@@ -121,6 +143,11 @@ helm install streaming-platform ./helm/streaming-platform \
 
 ```
 ├── docker-compose.yml              # Local dev infrastructure
+├── web/                           # Next.js monitoring dashboard
+│   ├── src/app/                   # Pages: Overview, Kafka, Flink, DLQ, Analytics
+│   ├── src/components/            # Reusable UI components
+│   ├── src/lib/                   # Prometheus, PostgreSQL, Flink clients
+│   └── Dockerfile
 ├── producer/                       # Go event producer
 ├── flink-jobs/                     # Apache Flink stream processing
 ├── dlq-retry-consumer/             # DLQ retry service (Go)

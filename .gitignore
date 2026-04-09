@@ -31,5 +31,13 @@ checkpoints/
 # Load test results
 load-test/results.json
 
+# Next.js / Web
+web/node_modules/
+web/.next/
+web/.env.local
+
+# Kafka Connect SMT
+kafka-connect/smt/target/
+
 # Nested repo artifact
 Distributed-Event-Streaming-Platform/

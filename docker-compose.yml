@@ -305,6 +305,28 @@ services:
     profiles:
       - producer
 
+  web:
+    build:
+      context: ./web
+    container_name: stream-monitor
+    ports:
+      - "3001:3000"
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      FLINK_URL: http://flink-jobmanager:8081
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-streaming}
+      POSTGRES_USER: ${POSTGRES_USER:-streaming}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-streaming}
+    depends_on:
+      - prometheus
+      - postgres
+    networks:
+      - streaming
+    profiles:
+      - web
+
 volumes:
   kafka-1-data:
   kafka-2-data:
