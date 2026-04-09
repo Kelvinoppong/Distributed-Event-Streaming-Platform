@@ -5,8 +5,6 @@ import com.streaming.model.OrderEvent;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
-import javax.annotation.Nullable;
-
 public class OrderEventKafkaSerializer implements KafkaRecordSerializationSchema<OrderEvent> {
 
     private static final long serialVersionUID = 1L;
@@ -29,7 +27,7 @@ public class OrderEventKafkaSerializer implements KafkaRecordSerializationSchema
     public ProducerRecord<byte[], byte[]> serialize(
             OrderEvent event,
             KafkaSinkContext context,
-            @Nullable Long timestamp) {
+            Long timestamp) {
         try {
             byte[] value = getMapper().writeValueAsBytes(event);
             byte[] key = event.getUserId() != null

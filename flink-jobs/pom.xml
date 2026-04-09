@@ -12,7 +12,7 @@
     <properties>
         <flink.version>1.18.0</flink.version>
         <kafka.connector.version>3.1.0-1.18</kafka.connector.version>
-        <jdbc.connector.version>3.1.0-1.18</jdbc.connector.version>
+        <jdbc.connector.version>3.2.0-1.18</jdbc.connector.version>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>

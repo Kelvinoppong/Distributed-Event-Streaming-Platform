@@ -39,9 +39,9 @@ public class SlackAlertTransform<R extends ConnectRecord<R>> implements Transfor
         String message = String.format(
                 ":red_circle: *DLQ Alert*\n"
                         + "Order `%s` by user `%s` routed to dead letter queue\n"
-                        + "Amount: $%s | Topic: `%s` | Partition: %d | Offset: %d",
+                        + "Amount: $%s | Topic: `%s` | Partition: %d",
                 orderId, userId, amount,
-                record.topic(), record.kafkaPartition(), record.kafkaOffset());
+                record.topic(), record.kafkaPartition());
 
         postSlackAlert(message);
         return record;
