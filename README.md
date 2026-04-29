@@ -3,7 +3,25 @@
 [![CI](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/ci.yml)
 [![Docker](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/docker.yml/badge.svg)](https://github.com/Kelvinoppong/Distributed-Event-Streaming-Platform/actions/workflows/docker.yml)
 
-Real-time event streaming pipeline with exactly-once delivery guarantees, stateful stream processing, dead letter queue handling, and Kubernetes-native deployment.
+A production-grade real-time event streaming pipeline that ingests high-throughput e-commerce order events, processes them with exactly-once semantics through stateful stream computations, and persists windowed aggregations to PostgreSQL. Failed events are routed to a dead letter queue with exponential retry and Slack alerting. The entire stack is Kubernetes-native with autoscaling, pod disruption budgets, and full observability.
+
+![Platform Dashboard](docs/images/dashboard.png)
+
+## How It Works
+
+1. **Go producers** generate order events at configurable rates (default 400 events/sec across 4 workers) and publish them to Kafka with idempotent delivery (`acks=all`). Events are keyed by `userId` for partition-level ordering.
+
+2. **Kafka cluster** (3 brokers, KRaft consensus) receives events into a 12-partition topic with replication factor 3 and `min.insync.replicas=2`, guaranteeing no data loss on broker failure.
+
+3. **Apache Flink** consumes from Kafka using the CooperativeStickyAssignor, validates each event, and routes invalid messages (negative amounts, empty IDs) to a DLQ topic via side outputs. Valid events pass through bounded out-of-order watermarking (5s tolerance) into 1-minute tumbling window aggregations keyed by user.
+
+4. **PostgreSQL sink** receives windowed results via JDBC batch upserts (`ON CONFLICT DO UPDATE`), completing the exactly-once chain from producer through processing to storage.
+
+5. **Dead Letter Queue pipeline** handles failures in two ways: a Go retry consumer re-publishes events with exponential backoff (1s→2s→4s→8s→16s), and a Kafka Connect connector with a custom SMT posts alerts to Slack for permanent failures.
+
+6. **Observability stack** — Prometheus scrapes JMX metrics from Kafka and Flink every 15s; Grafana renders dashboards for throughput, P99 latency, DLQ rate, and checkpoint duration; alerting rules fire on under-replicated partitions, high latency, and DLQ anomalies.
+
+7. **Monitoring dashboard** (Next.js) provides a unified real-time view of the entire pipeline — cluster health, metrics, alerts, and order analytics — in a single UI.
 
 ## Architecture
 
@@ -12,34 +30,21 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 │ Go Producer(s) │────►│ Kafka Cluster (3 brokers)  │────►│  Apache Flink    │
 │ idempotent     │     │ KRaft · RF=3 · 12 parts    │     │  RocksDB · E2E   │
 └────────────────┘     └────────────────────────────┘     └────────┬─────────┘
-        │ HPA                     │ Strimzi                        │
-        │ PDB                     │ PDB                            │
-                                                       ┌───────────┴──────────┐
-                                                       ▼                      ▼
-                                              ┌──────────────┐     ┌──────────────────┐
-                                              │  PostgreSQL   │     │  DLQ Topic       │
-                                              │  JDBC upsert  │     │  order-events-dlq│
-                                              └──────────────┘     └────────┬─────────┘
-                                                                            │
-                                                                ┌───────────┴──────────┐
-                                                                ▼                      ▼
-                                                       ┌──────────────┐     ┌──────────────────┐
-                                                       │ Retry        │     │ Kafka Connect     │
-                                                       │ Consumer     │     │ + Slack SMT       │
-                                                       │ (exp backoff)│     │                   │
-                                                       └──────────────┘     └──────────────────┘
+                                                                   │
+                                                      ┌────────────┴────────────┐
+                                                      ▼                         ▼
+                                             ┌────────────────┐       ┌─────────────────┐
+                                             │  PostgreSQL    │       │  DLQ Topic       │
+                                             │  JDBC upsert   │       │  order-events-dlq│
+                                             └────────────────┘       └────────┬────────┘
+                                                                               │
+                                                                  ┌────────────┴───────────┐
+                                                                  ▼                        ▼
+                                                         ┌─────────────────┐     ┌──────────────────┐
+                                                         │ Retry Consumer  │     │ Kafka Connect     │
+                                                         │ exp backoff     │     │ + Slack SMT       │
+                                                         └─────────────────┘     └──────────────────┘
 ```
-
-### Highlights
-
-- **Exactly-once semantics** end-to-end: idempotent Kafka producer, Flink EXACTLY_ONCE checkpointing, and PostgreSQL upsert sink.
-- **3-broker Kafka cluster** managed by Strimzi with pod anti-affinity across availability zones.
-- **Flink stateful processing** with custom watermarks, 1-minute tumbling windows, and RocksDB state backend.
-- **Dead letter queue pipeline** with Flink side outputs, exponential retry backoff, poison pill detection, and Slack alerts via custom Kafka Connect SMT.
-- **Kubernetes-native** with HPA autoscaling (2–20 pods), PodDisruptionBudgets for zero-downtime upgrades, and Helm chart for parameterized deployment.
-- **Full observability**: Prometheus metrics collection, Grafana dashboards (throughput, P99 latency, DLQ rate, checkpoint duration), and alerting rules for Kafka, Flink, and DLQ anomalies.
-- **Real-time monitoring dashboard**: Next.js web UI with live metrics, alerts panel, Kafka/Flink/DLQ views, and order analytics from PostgreSQL.
-- **CooperativeStickyAssignor** for minimal consumer group rebalance disruption.
 
 ## Tech Stack
 
@@ -47,20 +52,19 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 |-----------|------------|
 | Message Broker | Apache Kafka 3.6 (Strimzi on K8s / KRaft local) |
 | Stream Processing | Apache Flink 1.18 (K8s Operator) |
-| State Backend | RocksDB |
-| Producer | Go 1.21 + IBM/Sarama |
-| Sink Database | PostgreSQL 16 |
+| State Backend | RocksDB with exactly-once checkpointing |
+| Producer | Go 1.21 + IBM/Sarama (idempotent) |
+| Sink Database | PostgreSQL 16 (upsert semantics) |
 | DLQ Retry | Go consumer + exponential backoff |
 | DLQ Alerts | Kafka Connect + custom Slack SMT |
 | Orchestration | Kubernetes + Helm |
-| Autoscaling | HPA (CPU/memory) + PDB |
-| Containerization | Docker Compose (local) |
+| Autoscaling | HPA (2–20 pods) + PDB |
 | Metrics | Prometheus + JMX Exporter |
-| Dashboards | Grafana (custom streaming dashboard) |
-| Monitoring UI | Next.js 14 + Recharts + Tailwind CSS |
-| Alerting | Prometheus alerting rules |
+| Dashboards | Grafana + Next.js 14 monitoring UI |
+| Load Testing | k6 + xk6-kafka |
+| CI/CD | GitHub Actions (build, test, Docker publish) |
 
-## Quick Start (Local Docker)
+## Quick Start
 
 ### Prerequisites
 
@@ -68,11 +72,15 @@ Real-time event streaming pipeline with exactly-once delivery guarantees, statef
 - Go 1.21+ (producer / DLQ consumer)
 - Java 17 + Maven 3.9+ (Flink jobs)
 
+### Launch Infrastructure
+
 ```bash
 cp .env.example .env
 chmod +x scripts/setup-local.sh
 ./scripts/setup-local.sh
 ```
+
+### Build and Run the Pipeline
 
 ```bash
 cd flink-jobs && mvn clean package -DskipTests
@@ -80,152 +88,61 @@ docker compose exec flink-jobmanager flink run /opt/flink/usrlib/order-event-pro
 cd ../producer && go mod tidy && go run .
 ```
 
+### Start the Monitoring Dashboard
+
+```bash
+docker compose --profile web up -d
+```
+
+### Service URLs
+
 | Service | URL |
 |---------|-----|
+| Stream Monitor (Dashboard) | http://localhost:3001 |
 | Kafka UI | http://localhost:8080 |
 | Flink Dashboard | http://localhost:8081 |
 | Grafana | http://localhost:3000 (admin / streaming) |
-| Stream Monitor | http://localhost:3001 |
 | Prometheus | http://localhost:9090 |
 | PostgreSQL | `localhost:5432` (streaming / streaming) |
 
-## Monitoring Dashboard
+## Dashboard Pages
 
-The project includes a real-time Next.js dashboard that visualizes pipeline health, Kafka throughput, Flink job status, DLQ metrics, and order analytics.
-
-```bash
-# Start with Docker Compose (alongside existing services)
-docker compose --profile web up -d
-
-# Or run in development mode
-cd web && cp .env.local.example .env.local && npm run dev
-```
-
-**Pages:**
-- **Overview** — System health cards, key metrics, active alerts
-- **Kafka** — Throughput charts, per-broker table, partition health
-- **Flink** — Job status, checkpoint duration, cluster info
-- **DLQ** — Event rate, cumulative counts, DLQ-specific alerts
+- **Overview** — Cluster health, throughput, P99 latency, DLQ rate, active alerts
+- **Kafka** — Per-broker metrics, partition health, throughput time series
+- **Flink** — Job status, checkpoint duration, task slot utilization
+- **Dead Letter Queue** — DLQ event rate, cumulative counts, retry status
 - **Analytics** — Top users, revenue/volume time series from PostgreSQL
 
 ## Kubernetes Deployment
 
-### Prerequisites
-
-- kubectl, kind, helm
-
-### Deploy
-
 ```bash
+# Kind cluster with 3 workers (simulates 3 AZs)
 chmod +x scripts/deploy-k8s.sh
 ./scripts/deploy-k8s.sh
-```
 
-This creates a 3-worker kind cluster (simulating 3 AZs), installs Strimzi and Flink operators, deploys the Kafka cluster, PostgreSQL, Flink job, producer with HPA/PDB, and the DLQ retry consumer.
-
-### Deploy via Helm
-
-```bash
+# Or via Helm
 helm install streaming-platform ./helm/streaming-platform \
-  --namespace streaming \
-  --create-namespace \
-  --values helm/streaming-platform/values.yaml
+  --namespace streaming --create-namespace
 ```
 
-### Key Kubernetes Features
+**Key K8s features:**
+- HPA scales producers 2–20 replicas on CPU/memory thresholds
+- PDBs ensure zero-downtime rolling upgrades (min 2 producers available, max 1 Kafka broker unavailable)
+- Pod anti-affinity spreads Kafka brokers across nodes
+- Strimzi and Flink Operators manage lifecycle declaratively via CRDs
 
-- **HorizontalPodAutoscaler**: Producer scales 2–20 replicas based on CPU (70%) and memory (80%) utilization with stabilization windows.
-- **PodDisruptionBudgets**: Producer maintains min 2 available pods; Kafka allows max 1 unavailable broker during rolling upgrades.
-- **Pod Anti-Affinity**: Kafka brokers spread across nodes via `requiredDuringSchedulingIgnoredDuringExecution`.
-- **Strimzi Topic/User Operators**: Topics and ACLs managed declaratively via CRDs.
+## Exactly-Once Guarantees
 
-## Project Structure
-
-```
-├── docker-compose.yml              # Local dev infrastructure
-├── web/                           # Next.js monitoring dashboard
-│   ├── src/app/                   # Pages: Overview, Kafka, Flink, DLQ, Analytics
-│   ├── src/components/            # Reusable UI components
-│   ├── src/lib/                   # Prometheus, PostgreSQL, Flink clients
-│   └── Dockerfile
-├── producer/                       # Go event producer
-├── flink-jobs/                     # Apache Flink stream processing
-├── dlq-retry-consumer/             # DLQ retry service (Go)
-├── kafka-connect/                  # Kafka Connect + Slack SMT
-├── k8s/                            # Kubernetes manifests
-│   ├── namespace.yaml
-│   ├── kind-config.yaml            # 3-worker kind cluster (3 AZs)
-│   ├── kafka/
-│   │   ├── kafka-cluster.yaml      # Strimzi Kafka CRD
-│   │   ├── kafka-topics.yaml       # Topic CRDs
-│   │   ├── kafka-users.yaml        # User ACL CRDs
-│   │   └── kafka-metrics-config.yaml
-│   ├── flink/
-│   │   ├── flink-deployment.yaml   # Flink K8s Operator CRD
-│   │   ├── flink-job.yaml          # FlinkSessionJob CRD
-│   │   └── flink-rbac.yaml
-│   ├── producer/
-│   │   ├── deployment.yaml
-│   │   ├── hpa.yaml                # HPA: 2–20 replicas
-│   │   └── pdb.yaml                # PDB: min 2 available
-│   ├── dlq/
-│   │   └── dlq-retry-deployment.yaml
-│   ├── postgres/
-│   │   └── postgres-deployment.yaml
-│   └── monitoring/
-│       ├── prometheus.yaml
-│       ├── prometheus-alerts.yaml
-│       ├── prometheus-rbac.yaml
-│       ├── grafana.yaml
-│       ├── grafana-dashboards-configmap.yaml
-│       └── dashboards/kafka-overview.json
-├── helm/streaming-platform/        # Helm chart
-│   ├── Chart.yaml
-│   ├── values.yaml
-│   └── templates/
-├── monitoring/                      # Local Prometheus + Grafana config
-│   ├── prometheus.yml
-│   ├── alerts/                      # Alert rules (Kafka, Flink, DLQ)
-│   └── grafana/provisioning/        # Datasource + dashboard providers
-├── load-test/                       # k6 load test scripts
-│   ├── load_test.js                 # Main test with custom metrics + summary
-│   └── config/                      # low, high, stress profiles
-├── scripts/
-│   ├── setup-local.sh
-│   ├── deploy-k8s.sh
-│   ├── run-load-test.sh
-│   ├── run-integration-tests.sh
-│   └── init-postgres.sql
-├── .github/workflows/
-│   ├── ci.yml                       # Build + test + lint + integration
-│   └── docker.yml                   # Container image builds (GHCR)
-└── docs/
-    ├── architecture.md
-    └── benchmarks.md
-```
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `KAFKA_BROKERS` | `localhost:29092,...` | Kafka bootstrap servers |
-| `KAFKA_TOPIC` | `order-events` | Target Kafka topic |
-| `NUM_WORKERS` | `4` | Producer goroutines |
-| `EVENTS_PER_SECOND` | `100` | Events/sec per worker |
-| `MAX_RETRIES` | `5` | DLQ retry attempts |
-| `BASE_BACKOFF_SECONDS` | `1` | Initial retry backoff |
-| `SLACK_WEBHOOK_URL` | _(empty)_ | Slack webhook for DLQ alerts |
+The pipeline achieves end-to-end exactly-once delivery through three mechanisms:
+1. **Producer** — Sarama idempotent mode (`enable.idempotence=true`, `acks=all`)
+2. **Processing** — Flink `EXACTLY_ONCE` checkpointing with RocksDB state backend
+3. **Sink** — PostgreSQL `ON CONFLICT ... DO UPDATE` upsert on `(user_id, window_start)`
 
 ## Load Testing
 
-Load tests use [k6](https://k6.io/) with the [xk6-kafka](https://github.com/mostafa/xk6-kafka) extension.
-
 ```bash
-# Default profile (ramp to 1,000 VUs over 10 min)
-./scripts/run-load-test.sh
-
-# Available profiles: low, default, high, stress
-./scripts/run-load-test.sh high
+./scripts/run-load-test.sh          # Default: ramp to 1,000 VUs over 10 min
+./scripts/run-load-test.sh stress   # Stress: ramp to 5,000 VUs over 12 min
 ```
 
 | Profile | Peak VUs | Duration | Purpose |
@@ -235,11 +152,39 @@ Load tests use [k6](https://k6.io/) with the [xk6-kafka](https://github.com/most
 | `high` | 2,000 | 9 min | Sustained high throughput |
 | `stress` | 5,000 | 12 min | Break point analysis |
 
-Results and methodology: [docs/benchmarks.md](docs/benchmarks.md)
+## Configuration
 
-## Design Decisions
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAFKA_BROKERS` | `localhost:29092,...` | Kafka bootstrap servers |
+| `KAFKA_TOPIC` | `order-events` | Target topic |
+| `NUM_WORKERS` | `4` | Producer goroutines |
+| `EVENTS_PER_SECOND` | `100` | Events/sec per worker |
+| `MAX_RETRIES` | `5` | DLQ retry attempts |
+| `BASE_BACKOFF_SECONDS` | `1` | Initial retry backoff |
+| `SLACK_WEBHOOK_URL` | _(empty)_ | Slack webhook for DLQ alerts |
 
-See [docs/architecture.md](docs/architecture.md) for details on exactly-once guarantees, DLQ pipeline design, Kubernetes deployment strategy, and component interactions.
+## Project Structure
+
+```
+├── producer/                  # Go event producer (idempotent, HPA-ready)
+├── flink-jobs/                # Flink stream processing (validation, windowing, sinks)
+├── dlq-retry-consumer/        # Go DLQ retry service (exponential backoff)
+├── kafka-connect/             # Kafka Connect + custom Slack alert SMT
+├── web/                       # Next.js real-time monitoring dashboard
+├── k8s/                       # Kubernetes manifests (Kafka, Flink, producer, monitoring)
+├── helm/streaming-platform/   # Helm chart for parameterized deployment
+├── monitoring/                # Prometheus config, alert rules, Grafana provisioning
+├── load-test/                 # k6 load test scripts + profiles
+├── scripts/                   # Setup, deploy, and test automation
+├── docs/                      # Architecture and benchmark documentation
+└── .github/workflows/         # CI/CD pipelines
+```
+
+## Documentation
+
+- [Architecture](docs/architecture.md) — Detailed component design, data flow, and deployment strategy
+- [Benchmarks](docs/benchmarks.md) — Load test results and performance analysis
 
 ## License
 

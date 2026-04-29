@@ -110,7 +110,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
-      - "8080:8080"
+      - "8084:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: order-streaming-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
@@ -128,7 +128,7 @@ services:
     image: postgres:16-alpine
     container_name: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-streaming}
       POSTGRES_USER: ${POSTGRES_USER:-streaming}
@@ -148,7 +148,7 @@ services:
     image: flink:1.18-java17
     container_name: flink-jobmanager
     ports:
-      - "8081:8081"
+      - "8085:8081"
     command: jobmanager
     environment:
       FLINK_PROPERTIES: |
